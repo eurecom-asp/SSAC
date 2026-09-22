@@ -34,7 +34,6 @@ At inference time, the final converter runs in a **single pass** from source tra
 - **Hard Top-1 selection** to convert multiple stochastic candidates into one supervision target.
 - **Parameter-efficient adaptation** with a 32-token accent prompt and shared Q/K/V/O LoRA.
 - **Single-pass deployment**: best-of-N search is not required at inference time.
-- Built on the open-source **Vevo2 / Amphion** generation stack.
 
 ---
 
