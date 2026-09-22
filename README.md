@@ -114,34 +114,6 @@ Vevo2 checkpoints should follow the original Amphion directory layout under `ckp
 
 ---
 
-## Quick start
-
-### Single-pass accent conversion
-
-```bash
-python cli/infer.py \
-  --ar-checkpoint "$VEVO2_ROOT/contentstyle_modeling/posttrained" \
-  --student-checkpoint /path/to/final_converter_checkpoint \
-  --vevo2-root "$VEVO2_ROOT" \
-  --source-wav example/source.wav \
-  --source-text "The source transcript." \
-  --target-accent Korean \
-  --output-wav output.wav
-```
-
-Supported target-accent labels are:
-
-```text
-Arabic
-Chinese
-Hindi
-Korean
-Spanish
-Vietnamese
-```
-
----
-
 ## Training pipeline
 
 ### 1. Train the candidate accent scorer
