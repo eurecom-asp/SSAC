@@ -1,43 +1,125 @@
-# SSAC — ICASSP 2027 Accent Conversion
+<div align="center">
 
-Clean public release implementation for the ICASSP accent-conversion system developed on top of Vevo2.
-This repository contains only the ICASSP method path: categorical accent conditioning, multi-candidate synthetic supervision, feasibility filtering/Top-1 selection, and final converter training/inference.
+# SSAC
 
-## What the method does
+### Multi-Constraint Synthetic Supervision for Direct Accent Conversion
 
-The method turns reference-based accent transfer into categorical target-accent conversion.
-A fixed accent-adapted Vevo2-based generator `G_phi` produces multiple possible content-style token trajectories for the same source transcript and target-accent label.
-The trajectories are synthesized with the source waveform as the timbre reference, screened for accent/content/speaker/duration constraints, and the strongest feasible trajectory becomes synthetic supervision for a final converter.
+A Vevo2-based framework for **categorical accent control** with offline multi-candidate supervision and **single-pass inference**.
 
-Final inference is **not best-of-N**: the final converter takes source transcript + target-accent label, samples one content-style trajectory, and uses the source waveform only in the frozen Vevo2 acoustic/timbre stage.
+<p>
+  <a href="https://github.com/eurecom-asp/SSAC"><img src="https://img.shields.io/badge/Code-GitHub-181717?logo=github&logoColor=white" alt="GitHub"></a>
+  <a href="https://yangyangqu.github.io/accent-conversion-demo/"><img src="https://img.shields.io/badge/Audio-Demo-8A2BE2?logo=githubpages&logoColor=white" alt="Audio Demo"></a>
+  <img src="https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white" alt="Python 3.10+">
+  <img src="https://img.shields.io/badge/Backbone-Vevo2-5C4EE5" alt="Vevo2">
+</p>
 
-## Frozen experiment design
+[**Audio Demo**](https://yangyangqu.github.io/accent-conversion-demo/) · [**Repository**](https://github.com/eurecom-asp/SSAC)
 
-- target accents: Arabic / Chinese / Hindi / Korean / Spanish / Vietnamese
-- categorical accent prompt: 32 continuous embeddings
-- Vevo2 AR adaptation: shared Q/K/V/O LoRA, rank 32, alpha 64
-- accent-specific LoRA: disabled (`rank=0`)
-- source-prosody conditioning: disabled
-- candidate bank: `N=8`
-- final construction: 29,754 conditions -> 238,032 candidate trajectories
-- historical condition manifest: `historical_balanced_full_29754.jsonl` = 17,649 LibriTTS + 12,105 L2-ARCTIC rows, 4,959 per target accent; same-accent L2-ARCTIC pairs excluded
-- fixed gate: WER <= 0.08, SIM >= 0.60, duration ratio in [0.75, 1.45], and target-hit OR delta target probability >= 0.02
-- final selection: lexicographic `(target_prob, delta, hit, SIM, -WER)`
-- HardTop1 retained training conditions: 16,153
-- final converter objective: token autoregressive CE/NLL
-- final training: 3 epochs, AdamW, shared-LoRA LR `5e-6`, micro-batch 8, grad-accum 6, WD 0.01, 5% warmup, bf16; seeds 1337/2027/3407
+</div>
 
-See [`docs/METHOD_PROVENANCE.md`](docs/METHOD_PROVENANCE.md) for the evidence boundary and the few historical details that were not recovered rather than guessed.
+---
 
-## Dependency: Vevo2 / Amphion
+## Overview
 
-Experiments used Amphion commit:
+SSAC converts speech toward a **categorical target accent** while preserving linguistic content and source-speaker characteristics.
+
+The key idea is to use a fixed accent-conditioned generator to produce multiple candidate trajectories for each training condition, evaluate them under complementary accent, content, speaker, and duration constraints, and retain a single high-quality candidate as synthetic supervision for a final converter.
+
+The multi-candidate stage is used **only for supervision construction**.
+At inference time, the final converter runs in a **single pass** from source transcript and target-accent label, while the source waveform is used only by the frozen acoustic/timbre synthesis stage.
+
+### Highlights
+
+- **Categorical accent control** for six target accents: Arabic, Chinese, Hindi, Korean, Spanish, and Vietnamese.
+- **Multi-candidate synthetic supervision** with `N=8` candidates per training condition.
+- **Constraint-aware curation** using accent strength, intelligibility, speaker similarity, and duration consistency.
+- **Hard Top-1 selection** to convert multiple stochastic candidates into one supervision target.
+- **Parameter-efficient adaptation** with a 32-token accent prompt and shared Q/K/V/O LoRA.
+- **Single-pass deployment**: best-of-N search is not required at inference time.
+- Built on the open-source **Vevo2 / Amphion** generation stack.
+
+---
+
+## Method
+
+### Training-time supervision construction
+
+```mermaid
+flowchart LR
+    A[Source transcript] --> B[Target accent label]
+    B --> C[Accent-conditioned generator G_phi]
+    A --> C
+    C --> D[N stochastic content-style trajectories]
+    D --> E[Frozen Vevo2 acoustic decoder]
+    S[Source waveform] --> E
+    E --> F[Candidate waveforms]
+    F --> G[Accent scorer]
+    F --> H[WER]
+    F --> I[Speaker similarity]
+    F --> J[Duration ratio]
+    G --> K[Feasibility gate]
+    H --> K
+    I --> K
+    J --> K
+    K --> L[Hard Top-1 selection]
+    L --> M[Synthetic supervision]
+    M --> N[Final accent converter]
+```
+
+### Inference
+
+```mermaid
+flowchart LR
+    A[Source transcript] --> B[Final accent converter]
+    C[Target accent label] --> B
+    B --> D[Content-style trajectory]
+    D --> E[Frozen Vevo2 acoustic decoder]
+    F[Source waveform] --> E
+    E --> G[Converted speech]
+```
+
+A useful implementation detail is that the **source waveform is not used as an AR conditioning reference** for target-accent generation.
+It is used only in the frozen acoustic/timbre stage to preserve source-speaker characteristics.
+
+---
+
+## Core configuration
+
+| Component | Setting |
+|---|---|
+| Target accents | Arabic, Chinese, Hindi, Korean, Spanish, Vietnamese |
+| Accent prompt | 32 continuous embeddings |
+| LoRA modules | shared `q_proj`, `k_proj`, `v_proj`, `o_proj` |
+| LoRA rank / alpha | 32 / 64 |
+| Candidate budget | `N=8` |
+| WER threshold | `<= 0.08` |
+| Speaker similarity | `>= 0.60` |
+| Duration ratio | `[0.75, 1.45]` |
+| Accent feasibility | target hit **or** `Δp_target >= 0.02` |
+| Top-1 ranking | `(p_target, Δp_target, hit, SIM, -WER)` |
+| Final objective | autoregressive token CE/NLL |
+
+The full configuration is stored in [`configs/`](configs/).
+
+---
+
+## Installation
+
+### 1. Clone SSAC
+
+```bash
+git clone git@github.com:eurecom-asp/SSAC.git
+cd SSAC
+```
+
+### 2. Set up Vevo2 / Amphion
+
+SSAC uses the Vevo2 implementation from Amphion.
+The experiments were developed against the following Amphion revision:
 
 ```text
 26f6883110181f1dbfe95c70a7c7dbaf4de5f42a
 ```
-
-Set up Amphion separately and keep its repository root on `PYTHONPATH`:
 
 ```bash
 git clone https://github.com/open-mmlab/Amphion.git
@@ -46,19 +128,55 @@ git checkout 26f6883110181f1dbfe95c70a7c7dbaf4de5f42a
 pip install -r models/svc/vevo2/requirements.txt
 ```
 
-Then install SSAC:
+### 3. Install SSAC
 
 ```bash
 cd /path/to/SSAC
 pip install -e .
-export PYTHONPATH=/path/to/SSAC:/path/to/Amphion:$PYTHONPATH
+
+export SSAC_ROOT=/path/to/SSAC
+export AMPHION_ROOT=/path/to/Amphion
+export VEVO2_ROOT=$AMPHION_ROOT/ckpts/Vevo2
+export PYTHONPATH=$SSAC_ROOT:$AMPHION_ROOT:$PYTHONPATH
 ```
 
-Vevo2 checkpoints follow the original Amphion layout under `ckpts/Vevo2`.
+Vevo2 checkpoints should follow the original Amphion directory layout under `ckpts/Vevo2`.
 
-## 1. Candidate scorer q
+---
 
-The curation scorer is Whisper-small encoder -> valid-frame mean pooling -> StandardScaler -> balanced LogisticRegression.
+## Quick start
+
+### Single-pass accent conversion
+
+```bash
+python cli/infer.py \
+  --ar-checkpoint "$VEVO2_ROOT/contentstyle_modeling/posttrained" \
+  --student-checkpoint /path/to/final_converter_checkpoint \
+  --vevo2-root "$VEVO2_ROOT" \
+  --source-wav example/source.wav \
+  --source-text "The source transcript." \
+  --target-accent Korean \
+  --output-wav output.wav
+```
+
+Supported target-accent labels are:
+
+```text
+Arabic
+Chinese
+Hindi
+Korean
+Spanish
+Vietnamese
+```
+
+---
+
+## Training pipeline
+
+### 1. Train the candidate accent scorer
+
+The curation scorer uses a Whisper-small encoder with valid-frame mean pooling followed by a `StandardScaler` and balanced logistic regression.
 
 ```bash
 python cli/train_q.py \
@@ -67,46 +185,29 @@ python cli/train_q.py \
   --output ckpts/q_whisper_small_lr.joblib
 ```
 
-The recovered held-out protocol reports `N=1200`, accuracy `86.33%`, Macro-F1 `86.18%`.
-The exact historical 6000-row training-manifest file was not recovered from the project audit, so it is not fabricated here.
-
-## 2. Fixed generator G_phi
-
-For exact paper reproduction, use the recovered fixed generator checkpoint corresponding to:
-
-```text
-scales/30k/training/af_ce_r32_qkvo/epoch_8/advanced_adapter.pt
-```
-
-The loader accepts either the checkpoint directory or the `advanced_adapter.pt` file directly.
-
-It was created from 29,840 earlier selected reference-conditioned pseudo-target trajectories, then chosen by waveform-level development evaluation.
-The release also contains `cli/adapt_generator.py` so this stage is implemented, but its historical optimizer/LR/batch metadata must be filled from the original run metadata because those values were not fully recovered from the chats.
-
-## 3. Generate the N=8 final bank
-
-Use the historical `historical_balanced_full_29754.jsonl` as `conditions.jsonl`; it contains one row per source-utterance/target-accent condition.
-The original per-source target-assignment algorithm was not safely recovered, so the release validates the historical manifest instead of inventing a replacement; see [`docs/MANIFESTS.md`](docs/MANIFESTS.md).
+### 2. Generate the candidate bank
 
 ```bash
 python cli/generate_candidates.py \
   --conditions data/conditions.jsonl \
   --ar-checkpoint "$VEVO2_ROOT/contentstyle_modeling/posttrained" \
-  --student-checkpoint ckpts/G_phi \
+  --student-checkpoint /path/to/G_phi \
   --vevo2-root "$VEVO2_ROOT" \
   --output-dir runs/n8/wav \
   --results-jsonl runs/n8/candidates.jsonl \
   --best-of-n 8 \
   --flow-steps 32 \
-  --top-k 25 --top-p 0.8 --temperature 1.0 \
-  --min-new-tokens 15 --max-new-tokens 500 \
+  --top-k 25 \
+  --top-p 0.8 \
+  --temperature 1.0 \
+  --min-new-tokens 15 \
+  --max-new-tokens 500 \
   --seed 1337
 ```
 
-The eight attempts share exactly the same `(source_text, target_accent, G_phi)` conditioning; only the deterministic stochastic-decoding seed changes.
-There is no target-reference waveform/transcript in this final N=8 construction.
+For a fixed `(source_text, target_accent)` condition, the candidates share the same model conditioning and differ only through stochastic decoding.
 
-## 4. Score and select HardTop1
+### 3. Score candidates
 
 ```bash
 python cli/score_candidates.py \
@@ -114,54 +215,114 @@ python cli/score_candidates.py \
   --q ckpts/q_whisper_small_lr.joblib \
   --ecapa-dir ckpts/speechbrain_ecapa \
   --output runs/n8/scores.jsonl
+```
 
+### 4. Apply the feasibility gate and Hard Top-1 selection
+
+```bash
 python cli/select_top1.py \
   --scores runs/n8/scores.jsonl \
   --output runs/n8/hard_top1.jsonl
 ```
 
-The selector first applies the fixed gate, discards conditions with no feasible candidate, then performs the accent-first lexicographic ranking.
+The selector first removes infeasible candidates and then applies the accent-first lexicographic ranking defined in [`configs/selection.yaml`](configs/selection.yaml).
 
-## 5. Train the final converter
-
-Run all three paper seeds and keep all epoch checkpoints for the waveform-level development selection:
+### 5. Train the final converter
 
 ```bash
-for seed in 1337 2027 3407; do
-  python cli/train_student.py \
-    --config configs/final_hardtop1.yaml \
-    --manifest runs/n8/hard_top1.jsonl \
-    --ar-checkpoint "$VEVO2_ROOT/contentstyle_modeling/posttrained" \
-    --output-dir "runs/final_seed${seed}" \
-    --seed "$seed"
-done
-```
-
-The historical audit records selected epochs E1/E2/E2 for seeds 1337/2027/3407.
-If the original `quality_gate_v2` seed-specific warm starts are being reproduced, pass them with `--init-checkpoint`.
-
-## 6. Single-pass inference
-
-```bash
-python cli/infer.py \
+python cli/train_student.py \
+  --config configs/final_hardtop1.yaml \
+  --manifest runs/n8/hard_top1.jsonl \
   --ar-checkpoint "$VEVO2_ROOT/contentstyle_modeling/posttrained" \
-  --student-checkpoint runs/final_seed1337/epoch_1 \
-  --vevo2-root "$VEVO2_ROOT" \
-  --source-wav example/source.wav \
-  --source-text "The source transcript." \
-  --target-accent Korean \
-  --output-wav out.wav
+  --output-dir runs/final \
+  --seed 1337
 ```
 
-## One-command paper pipeline
+For multi-run experiments, repeat training with the desired random seeds and retain checkpoints according to the development protocol used for your experiment.
 
-After setting the environment variables documented at the top of the script:
+---
+
+## Data and manifest format
+
+SSAC expects JSONL manifests for training conditions, generated candidates, and selected supervision.
+Detailed field definitions and validation rules are documented in:
+
+- [`docs/MANIFESTS.md`](docs/MANIFESTS.md)
+- [`docs/METHOD_PROVENANCE.md`](docs/METHOD_PROVENANCE.md)
+
+You can audit a manifest before running expensive generation or training:
 
 ```bash
-bash scripts/reproduce_icassp.sh
+python cli/audit_manifests.py --help
 ```
 
-## Scope
+---
 
-This repository contains only the method, curation, training, and inference path used for the ICASSP accent-conversion submission.
-External baseline implementations and the independent final paper evaluator remain separate dependencies.
+## Repository structure
+
+```text
+SSAC/
+├── ssac/                    # Core model, generation, scoring, and selection code
+│   ├── student.py
+│   ├── generation.py
+│   ├── scoring.py
+│   ├── select.py
+│   ├── training.py
+│   └── vevo2_backend.py
+│
+├── cli/                     # Command-line entry points
+│   ├── adapt_generator.py
+│   ├── generate_candidates.py
+│   ├── score_candidates.py
+│   ├── select_top1.py
+│   ├── train_q.py
+│   ├── train_student.py
+│   ├── infer.py
+│   └── audit_manifests.py
+│
+├── configs/                 # Generation, selection, and training configurations
+├── docs/                    # Manifest and provenance documentation
+├── tests/                   # Lightweight regression tests
+├── requirements.txt
+└── pyproject.toml
+```
+
+---
+
+## Reproducibility notes
+
+This repository separates **verified implementation details** from historical metadata that could not be reliably reconstructed.
+Unrecovered details are documented explicitly rather than replaced with guessed values.
+
+For the cleanest reproduction workflow:
+
+1. keep the Amphion revision fixed;
+2. use the exact condition manifest associated with the experiment;
+3. keep candidate-generation seeds deterministic;
+4. run manifest audits before generation and training;
+5. keep the candidate scorer separate from the final evaluation model.
+
+See [`docs/METHOD_PROVENANCE.md`](docs/METHOD_PROVENANCE.md) for the full provenance boundary.
+
+---
+
+## Audio examples
+
+Listening examples across target accents and comparison systems are available here:
+
+**https://yangyangqu.github.io/accent-conversion-demo/**
+
+---
+
+## Acknowledgements
+
+SSAC builds on [Vevo2](https://github.com/open-mmlab/Amphion/tree/main/models/svc/vevo2) and the [Amphion](https://github.com/open-mmlab/Amphion) toolkit.
+We thank the authors and maintainers of these open-source projects.
+
+---
+
+<div align="center">
+
+**SSAC — categorical accent control through curated synthetic supervision**
+
+</div>
