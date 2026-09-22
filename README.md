@@ -4,8 +4,6 @@
 
 ### Multi-Constraint Synthetic Supervision for Direct Accent Conversion
 
-A Vevo2-based framework for **categorical accent control** with offline multi-candidate supervision and **single-pass inference**.
-
 <p>
   <a href="https://github.com/eurecom-asp/SSAC"><img src="https://img.shields.io/badge/Code-GitHub-181717?logo=github&logoColor=white" alt="GitHub"></a>
   <a href="https://yangyangqu.github.io/accent-conversion-demo/"><img src="https://img.shields.io/badge/Audio-Demo-8A2BE2?logo=githubpages&logoColor=white" alt="Audio Demo"></a>
