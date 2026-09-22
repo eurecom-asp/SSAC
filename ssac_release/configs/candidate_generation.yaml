@@ -1,0 +1,11 @@
+# Final ICASSP candidate-bank generation after G_phi is fixed.
+n_candidates: 8
+base_seed: 1337
+do_sample: true
+top_k: 25
+top_p: 0.8
+temperature: 1.0
+min_new_tokens: 15
+max_new_tokens: 500
+flow_steps: 32
+use_source_prosody: false

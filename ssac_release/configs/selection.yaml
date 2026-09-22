@@ -1,0 +1,11 @@
+wer_max: 0.08
+speaker_sim_min: 0.60
+duration_ratio_min: 0.75
+duration_ratio_max: 1.45
+accent_condition: "target_hit == 1 OR target_prob_delta >= 0.02"
+ranking:
+  - target_prob
+  - target_prob_delta
+  - target_hit
+  - speaker_sim
+  - negative_wer

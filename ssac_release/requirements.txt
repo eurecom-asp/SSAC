@@ -1,0 +1,16 @@
+numpy
+scipy
+pyyaml
+joblib
+scikit-learn
+jiwer
+librosa
+soundfile
+torch
+torchaudio
+transformers
+accelerate
+safetensors
+huggingface_hub
+openai-whisper
+speechbrain

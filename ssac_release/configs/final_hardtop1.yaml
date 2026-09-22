@@ -1,0 +1,31 @@
+model:
+  prompt_length: 32
+  max_sequence_length: 1024
+  lora_target_modules: [q_proj, k_proj, v_proj, o_proj]
+  shared_lora_rank: 32
+  shared_lora_alpha: 64.0
+  accent_lora_rank: 0
+  accent_lora_alpha: 16.0
+  lora_dropout: 0.05
+  use_phone_prefix: false
+  phone_prefix_length: 24
+  use_phone_cross_attention: false
+  phone_cross_attention_dim: 128
+  use_deep_film: false
+  accent_loss_weight: 0.0
+  content_loss_weight: 0.0
+  preference_loss_weight: 0.0
+  preference_beta: 0.1
+
+training:
+  epochs: 3
+  micro_batch_size: 8
+  grad_accum: 6
+  lr: 5.0e-6
+  # The historical audit did not recover a separate prompt LR; null ties it to lr.
+  prompt_lr: null
+  weight_decay: 0.01
+  warmup_ratio: 0.05
+  bf16: true
+  seed: 1337
+  num_workers: 0

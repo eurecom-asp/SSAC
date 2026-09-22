@@ -1,0 +1,13 @@
+frontend: openai/whisper-small
+pooling: valid-frame-mean
+scaler: StandardScaler
+classifier: LogisticRegression
+C: 1.0
+class_weight: balanced
+solver: lbfgs
+max_iter: 3000
+classes: [Arabic, Chinese, Hindi, Korean, Spanish, Vietnamese]
+# Recovered held-out development result from the experiment audit:
+reported_dev_n: 1200
+reported_dev_accuracy: 0.8633
+reported_dev_macro_f1: 0.8618
