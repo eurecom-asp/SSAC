@@ -44,39 +44,9 @@ At inference time, the final converter runs in a **single pass** from source tra
 
 ### Training-time supervision construction
 
-```mermaid
-flowchart LR
-    A[Source transcript] --> B[Target accent label]
-    B --> C[Accent-conditioned generator G_phi]
-    A --> C
-    C --> D[N stochastic content-style trajectories]
-    D --> E[Frozen Vevo2 acoustic decoder]
-    S[Source waveform] --> E
-    E --> F[Candidate waveforms]
-    F --> G[Accent scorer]
-    F --> H[WER]
-    F --> I[Speaker similarity]
-    F --> J[Duration ratio]
-    G --> K[Feasibility gate]
-    H --> K
-    I --> K
-    J --> K
-    K --> L[Hard Top-1 selection]
-    L --> M[Synthetic supervision]
-    M --> N[Final accent converter]
-```
 
 ### Inference
 
-```mermaid
-flowchart LR
-    A[Source transcript] --> B[Final accent converter]
-    C[Target accent label] --> B
-    B --> D[Content-style trajectory]
-    D --> E[Frozen Vevo2 acoustic decoder]
-    F[Source waveform] --> E
-    E --> G[Converted speech]
-```
 
 A useful implementation detail is that the **source waveform is not used as an AR conditioning reference** for target-accent generation.
 It is used only in the frozen acoustic/timbre stage to preserve source-speaker characteristics.
@@ -319,10 +289,3 @@ Listening examples across target accents and comparison systems are available he
 SSAC builds on [Vevo2](https://github.com/open-mmlab/Amphion/tree/main/models/svc/vevo2) and the [Amphion](https://github.com/open-mmlab/Amphion) toolkit.
 We thank the authors and maintainers of these open-source projects.
 
----
-
-<div align="center">
-
-**SSAC — categorical accent control through curated synthetic supervision**
-
-</div>
