@@ -245,11 +245,15 @@ See [`docs/METHOD_PROVENANCE.md`](docs/METHOD_PROVENANCE.md) for the full proven
 
 ---
 
-## Audio examples
+## Audio Examples
 
-Listening examples across target accents and comparison systems are available here:
+Listening examples across target accents and comparison systems are available on the companion demo page:
 
-**https://yangyangqu.github.io/accent-conversion-demo/**
+**[SSAC Listening Samples](https://eurecom-asp.github.io/SSAC_listening_samples/)**
+
+The corresponding sample repository is available at:
+
+https://github.com/eurecom-asp/SSAC_listening_samples
 
 ---
 
